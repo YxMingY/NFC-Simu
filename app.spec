@@ -15,11 +15,26 @@ block_cipher = None
 
 # 收集 scipy 和 pyarrow 的 DLL (解决 DLL load failed)
 extra_binaries = []
-for pkg in ['scipy', 'pyarrow']:
-    try:
-        extra_binaries += collect_dynamic_libs(pkg)
-    except Exception:
-        pass
+
+# pyarrow DLLs (arrow.dll 等在包目录内)
+try:
+    extra_binaries += collect_dynamic_libs('pyarrow')
+except Exception:
+    pass
+
+# scipy 依赖的 BLAS/LAPACK DLL (conda 环境下在 Library/bin 中)
+try:
+    import sysconfig
+    conda_prefix = Path(sysconfig.get_path('data'))
+    conda_bin = conda_prefix / "Library" / "bin"
+    if conda_bin.exists():
+        for dll in conda_bin.glob("*.dll"):
+            name = dll.name.lower()
+            if any(k in name for k in ['blas', 'lapack', 'mkl', 'openblas', 'libblas', 'liblapack', 'libcblas', 'libgcc', 'libwinpthread', 'libgfortran']):
+                extra_binaries.append((str(dll), '.'))
+                print(f"  Adding BLAS DLL: {dll.name}")
+except Exception as e:
+    print(f"Warning: Could not collect BLAS DLLs: {e}")
 
 # 收集 pyarrow 数据文件
 extra_datas = []
