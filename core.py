@@ -125,8 +125,6 @@ def compute_edof_sweep(Mt_list, Mr, r_user, fc, threshold=0.3):
     扫描 Mt 计算 EDoF (有效自由度)
     返回仿真 EDoF、理论 EDoF、能量集中度、有效孔径利用率
     """
-    from scipy.linalg import svdvals
-
     c = 3e8
     lam = c / fc
     d = lam / 2
@@ -147,7 +145,7 @@ def compute_edof_sweep(Mt_list, Mr, r_user, fc, threshold=0.3):
         phase = -2 * np.pi / lam * (dist_matrix - r_user)
         H = amp * np.exp(1j * phase)
 
-        singular_values = svdvals(H)
+        singular_values = np.linalg.svd(H, compute_uv=False)
         sv_max = singular_values[0]
         sv_normalized = singular_values / sv_max
 

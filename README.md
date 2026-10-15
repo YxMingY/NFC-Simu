@@ -39,7 +39,7 @@
 ## 环境要求
 
 - Python 3.9+
-- 依赖包：`streamlit`, `numpy`, `matplotlib`, `scipy`
+- 依赖包：`streamlit`, `numpy`, `matplotlib`
 
 ## 运行方式
 

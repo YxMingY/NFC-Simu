@@ -4,7 +4,6 @@ PyInstaller spec 文件
 用于打包 6G 近场 XL-MIMO 仿真系统
 """
 import sys
-# 增加递归深度限制
 sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 import os
@@ -13,32 +12,11 @@ from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
 
 block_cipher = None
 
-# 收集 scipy 和 pyarrow 的 DLL (解决 DLL load failed)
+# 收集 pyarrow DLL 和数据文件 (streamlit 内部依赖)
 extra_binaries = []
-
-# pyarrow DLLs (arrow.dll 等在包目录内)
-try:
-    extra_binaries += collect_dynamic_libs('pyarrow')
-except Exception:
-    pass
-
-# scipy 依赖的 BLAS/LAPACK DLL (conda 环境下在 Library/bin 中)
-try:
-    import sysconfig
-    conda_prefix = Path(sysconfig.get_path('data'))
-    conda_bin = conda_prefix / "Library" / "bin"
-    if conda_bin.exists():
-        for dll in conda_bin.glob("*.dll"):
-            name = dll.name.lower()
-            if any(k in name for k in ['blas', 'lapack', 'mkl', 'openblas', 'libblas', 'liblapack', 'libcblas', 'libgcc', 'libwinpthread', 'libgfortran']):
-                extra_binaries.append((str(dll), '.'))
-                print(f"  Adding BLAS DLL: {dll.name}")
-except Exception as e:
-    print(f"Warning: Could not collect BLAS DLLs: {e}")
-
-# 收集 pyarrow 数据文件
 extra_datas = []
 try:
+    extra_binaries += collect_dynamic_libs('pyarrow')
     extra_datas += collect_data_files('pyarrow')
 except Exception:
     pass
@@ -65,13 +43,12 @@ for src, dest in project_files:
 try:
     import streamlit
     import importlib.metadata
-    
+
     streamlit_path = Path(streamlit.__file__).parent
     static_path = streamlit_path / "static"
     if static_path.exists():
         project_datas.append((str(static_path), "streamlit/static"))
-    
-    # 添加 streamlit 的 dist-info (解决 PackageNotFoundError)
+
     dist = importlib.metadata.distribution('streamlit')
     if dist._path:
         project_datas.append((str(dist._path), "streamlit-" + str(dist.version) + ".dist-info"))
@@ -108,14 +85,6 @@ a = Analysis(
         'matplotlib',
         'matplotlib.pyplot',
         'matplotlib.backends.backend_agg',
-        'scipy',
-        'scipy.linalg',
-        'scipy.linalg.blas',
-        'scipy.linalg.lapack',
-        'scipy.linalg._fblas',
-        'scipy.linalg._flapack',
-        'scipy._lib',
-        'scipy._lib.messagestream',
         'pyarrow',
         'pyarrow.lib',
         'pyarrow._compute',
@@ -126,7 +95,6 @@ a = Analysis(
         'pyarrow._parquet',
         'pyarrow.fs',
         'pyarrow.ipc',
-        'pyarrow.table',
     ],
     hookspath=[],
     hooksconfig={},
@@ -134,6 +102,7 @@ a = Analysis(
     excludes=[
         'torch',
         'tensorflow',
+        'scipy',
         'pandas',
         'IPython',
         'jupyter',
@@ -167,7 +136,7 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # 显示控制台以便调试
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

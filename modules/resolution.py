@@ -130,4 +130,4 @@ $$\delta r \approx \frac{2r^2}{r_{\text{hp}}}$$
             "r₂ (m)": [f"{r2[i]:.2f}" for i in table_indices],
             "δr (m)": [f"{(r2[i] - r1[i]):.2f}" for i in table_indices],
         }
-        st.table(table_data)
+        st.dataframe(table_data, use_container_width=True)
