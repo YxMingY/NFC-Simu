@@ -71,7 +71,7 @@ def compute_upd(M, d, lam, thetas, Upsilon_th=0.9):
 
 def compute_snr_scaling(M_list, r_user, theta, fc, P_tx_dB, sigma2_dB):
     """
-    计算 SNR 缩放律: UPW / NUSW向量法 / NUSW解析公式
+    计算 SNR 缩放律: UPW / NUSW向量法(修正版) / NUSW解析公式
     返回各模型的 SNR (线性值) 和能量守恒上限
     """
     c = 3e8
@@ -99,14 +99,11 @@ def compute_snr_scaling(M_list, r_user, theta, fc, P_tx_dB, sigma2_dB):
         snr_upw = P_bar * np.abs(alpha_upw)**2 * np.sum(np.abs(a_upw)**2)
         snr_upw_list.append(snr_upw)
 
-        # NUSW 向量法
+        # NUSW 向量法 (修正版：使用真实路径损耗)
         m_idx2 = np.arange(-(M - 1) / 2, (M + 1) / 2)
         r_m = np.sqrt(r_user**2 + (m_idx2 * d)**2 - 2 * r_user * (m_idx2 * d) * np.cos(theta))
-        amplitude = np.sqrt(r_user / r_m)
-        phase = np.exp(-1j * 2 * np.pi / lam * r_m)
-        a_nusw = amplitude * phase
-        alpha_nusw = np.sqrt((lam / (4 * np.pi))**2 / r_user**2) * np.exp(-1j * 2 * np.pi * r_user / lam)
-        snr_nusw = P_bar * np.abs(alpha_nusw)**2 * np.sum(np.abs(a_nusw)**2)
+        # 每个天线使用真实距离 r_m 计算路径损耗
+        snr_nusw = P_bar * (lam / (4 * np.pi))**2 * np.sum(1 / r_m**2)
         snr_nusw_list.append(snr_nusw)
 
         # NUSW 解析公式
