@@ -42,7 +42,6 @@ $$a_m = \underbrace{\sqrt{\frac{r}{r_m}}}_{\text{幅度项}} \cdot \underbrace{\
     with ctrl_col:
         st.markdown("##### 参数设置")
         M = st.slider("天线数量 M", 8, 512, 128, step=8)
-        r = st.number_input("用户距离 r (m)", min_value=0.1, value=10.0, step=1.0)
         theta_deg = st.slider("角度 θ (度)", 0, 180, 90)
         theta = np.radians(theta_deg)
         test_distances = st.multiselect(
