@@ -85,12 +85,14 @@ $$a_m = \underbrace{\sqrt{\frac{r}{r_m}}}_{\text{幅度项}} \cdot \underbrace{\
 
     c = 3e8
     lam = c / (fc_global * 1e9)
+    d = lam / 2
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    main_col, ctrl_col = st.columns([3, 1])
+
+    with ctrl_col:
+        st.markdown("##### 参数设置")
         M = st.slider("天线数量 M", 8, 512, 128, step=8)
         r = st.number_input("用户距离 r (m)", min_value=0.1, value=10.0, step=1.0)
-    with col2:
         theta_deg = st.slider("角度 θ (度)", 0, 180, 90)
         theta = np.radians(theta_deg)
         test_distances = st.multiselect(
@@ -98,42 +100,40 @@ $$a_m = \underbrace{\sqrt{\frac{r}{r_m}}}_{\text{幅度项}} \cdot \underbrace{\
             [1.25, 2.5, 5, 10, 25, 50, 100, 200, 500, 1000],
             default=[1.25, 5, 10, 50, 200, 1000],
         )
-    with col3:
-        d = lam / 2
+        st.markdown("---")
         st.metric("波长 λ", f"{lam * 1000:.2f} mm")
         st.metric("天线间距 d", f"{d * 1000:.2f} mm")
         st.metric("阵列孔径 D", f"{(M - 1) * d:.2f} m")
 
-    if not test_distances:
-        st.warning("请至少选择一个测试距离")
-        return
+    with main_col:
+        if not test_distances:
+            st.warning("请至少选择一个测试距离")
+            return
 
-    # 图1: 相位对比
-    fig1, ax1 = plt.subplots(figsize=(10, 5))
-    for r_test in test_distances:
-        _, _, phase = get_nusw_vector(r_test, theta, M, d, lam)
-        ax1.plot(np.arange(M), phase, linewidth=2, label=f"r = {r_test} m")
-    ax1.set_xlabel("天线单元索引")
-    ax1.set_ylabel("相位 (rad)")
-    ax1.set_title("近场 vs 远场：阵列响应相位线性度对比")
-    ax1.legend(fontsize=9)
-    ax1.grid(True, linestyle="--", alpha=0.7)
-    st.pyplot(fig1)
-    plt.close(fig1)
+        fig1, ax1 = plt.subplots(figsize=(7, 3.5))
+        for r_test in test_distances:
+            _, _, phase = get_nusw_vector(r_test, theta, M, d, lam)
+            ax1.plot(np.arange(M), phase, linewidth=2, label=f"r = {r_test} m")
+        ax1.set_xlabel("天线单元索引")
+        ax1.set_ylabel("相位 (rad)")
+        ax1.set_title("阵列响应相位线性度对比")
+        ax1.legend(fontsize=8)
+        ax1.grid(True, linestyle="--", alpha=0.7)
+        st.pyplot(fig1)
+        plt.close(fig1)
 
-    # 图2: 幅度对比
-    fig2, ax2 = plt.subplots(figsize=(10, 5))
-    for r_test in test_distances:
-        _, amp, _ = get_nusw_vector(r_test, theta, M, d, lam)
-        power = np.abs(amp) ** 2
-        ax2.plot(np.arange(M), power, linewidth=2, label=f"r = {r_test} m")
-    ax2.set_xlabel("天线单元索引")
-    ax2.set_ylabel("归一化接收功率")
-    ax2.set_title("近场 vs 远场：阵列响应幅度均匀性对比")
-    ax2.legend(fontsize=9)
-    ax2.grid(True, linestyle="--", alpha=0.7)
-    st.pyplot(fig2)
-    plt.close(fig2)
+        fig2, ax2 = plt.subplots(figsize=(7, 3.5))
+        for r_test in test_distances:
+            _, amp, _ = get_nusw_vector(r_test, theta, M, d, lam)
+            power = np.abs(amp) ** 2
+            ax2.plot(np.arange(M), power, linewidth=2, label=f"r = {r_test} m")
+        ax2.set_xlabel("天线单元索引")
+        ax2.set_ylabel("归一化接收功率")
+        ax2.set_title("阵列响应幅度均匀性对比")
+        ax2.legend(fontsize=8)
+        ax2.grid(True, linestyle="--", alpha=0.7)
+        st.pyplot(fig2)
+        plt.close(fig2)
 
 
 # ==================== 模块: 近场区域划分 ====================
@@ -175,56 +175,58 @@ $$r_{\text{UPD}}(\theta) = \min\left\{r : \frac{\min_m P_m}{\max_m P_m} \geq \Up
 
     c = 3e8
     lam = c / (fc_global * 1e9)
+    d = lam / 2
 
-    col1, col2 = st.columns(2)
-    with col1:
+    main_col, ctrl_col = st.columns([3, 1])
+
+    with ctrl_col:
+        st.markdown("##### 参数设置")
         M = st.slider("天线数量 M", 16, 512, 128, step=16, key="region_M")
         Upsilon_th = st.slider("功率均匀度阈值 Υ_th", 0.5, 0.99, 0.9, step=0.01)
-    with col2:
-        d = lam / 2
+        st.markdown("---")
         D = (M - 1) * d
         r_Rayl = 2 * D**2 / lam
         st.metric("阵列孔径 D", f"{D:.2f} m")
         st.metric("经典瑞利距离", f"{r_Rayl:.1f} m")
         st.metric("波长 λ", f"{lam * 1000:.2f} mm")
 
-    thetas = np.linspace(0.01, np.pi / 2, 300)
+    with main_col:
+        thetas = np.linspace(0.01, np.pi / 2, 300)
 
-    with st.spinner("计算区域边界..."):
-        r_DDRayl = compute_dd_rayleigh(M, d, lam, thetas)
-        r_UPD_vals = compute_upd(M, d, lam, thetas, Upsilon_th)
+        with st.spinner("计算区域边界..."):
+            r_DDRayl = compute_dd_rayleigh(M, d, lam, thetas)
+            r_UPD_vals = compute_upd(M, d, lam, thetas, Upsilon_th)
 
-    # 极坐标转笛卡尔
-    def polar_to_cart(r, th):
-        th2 = np.pi / 2 - th
-        return r * np.cos(th2), r * np.sin(th2)
+        def polar_to_cart(r, th):
+            th2 = np.pi / 2 - th
+            return r * np.cos(th2), r * np.sin(th2)
 
-    fig, ax = plt.subplots(figsize=(9, 9))
+        fig, ax = plt.subplots(figsize=(6, 6))
 
-    x_rayl, y_rayl = polar_to_cart(r_Rayl, thetas)
-    ax.plot(x_rayl, y_rayl, "k--", linewidth=2, label=f"经典瑞利距离 = {r_Rayl:.1f} m")
+        x_rayl, y_rayl = polar_to_cart(r_Rayl, thetas)
+        ax.plot(x_rayl, y_rayl, "k--", linewidth=2, label=f"经典瑞利距离 = {r_Rayl:.1f} m")
 
-    x_dd, y_dd = polar_to_cart(r_DDRayl, thetas)
-    ax.plot(x_dd, y_dd, "b-", linewidth=2, label="方向相关瑞利距离")
+        x_dd, y_dd = polar_to_cart(r_DDRayl, thetas)
+        ax.plot(x_dd, y_dd, "b-", linewidth=2, label="方向相关瑞利距离")
 
-    x_upd, y_upd = polar_to_cart(r_UPD_vals, thetas)
-    ax.plot(x_upd, y_upd, "r-", linewidth=2, label=f"均匀功率距离 (Υ_th={Upsilon_th})")
+        x_upd, y_upd = polar_to_cart(r_UPD_vals, thetas)
+        ax.plot(x_upd, y_upd, "r-", linewidth=2, label=f"均匀功率距离 (Υ_th={Upsilon_th})")
 
-    r_inner = np.minimum(r_UPD_vals, r_DDRayl)
-    x_fill = np.concatenate([[0], polar_to_cart(r_inner, thetas)[0], [0]])
-    y_fill = np.concatenate([[0], polar_to_cart(r_inner, thetas)[1], [0]])
-    ax.fill(x_fill, y_fill, color="red", alpha=0.1, label="NUSW 区域")
+        r_inner = np.minimum(r_UPD_vals, r_DDRayl)
+        x_fill = np.concatenate([[0], polar_to_cart(r_inner, thetas)[0], [0]])
+        y_fill = np.concatenate([[0], polar_to_cart(r_inner, thetas)[1], [0]])
+        ax.fill(x_fill, y_fill, color="red", alpha=0.1, label="NUSW 区域")
 
-    ax.set_xlabel("x 距离 (m)")
-    ax.set_ylabel("y 距离 (m)")
-    ax.set_title("近场通信区域划分边界图 (第一象限)")
-    ax.legend(loc="upper right", fontsize=10)
-    ax.grid(True, linestyle=":", alpha=0.6)
-    ax.set_aspect("equal")
-    ax.set_xlim(0, max(x_rayl) * 1.1)
-    ax.set_ylim(0, max(y_rayl) * 1.1)
-    st.pyplot(fig)
-    plt.close(fig)
+        ax.set_xlabel("x 距离 (m)")
+        ax.set_ylabel("y 距离 (m)")
+        ax.set_title("近场通信区域划分边界图 (第一象限)")
+        ax.legend(loc="upper right", fontsize=9)
+        ax.grid(True, linestyle=":", alpha=0.6)
+        ax.set_aspect("equal")
+        ax.set_xlim(0, max(x_rayl) * 1.1)
+        ax.set_ylim(0, max(y_rayl) * 1.1)
+        st.pyplot(fig)
+        plt.close(fig)
 
 
 # ==================== 模块: SNR 缩放律 ====================
@@ -271,53 +273,54 @@ $$\text{SNR}_{\max} = \frac{\bar{P} \lambda^2 \pi}{(4\pi)^2 d \cdot r \sin\theta
 **核心结论**：远场模型 (UPW) 在近场会预测出违反物理定律的结果；NUSW 模型才能正确捕捉近场 SNR 饱和效应。
 """)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    main_col, ctrl_col = st.columns([3, 1])
+
+    with ctrl_col:
+        st.markdown("##### 参数设置")
         r_user = st.number_input("用户距离 r (m)", 1.0, 500.0, 15.0, step=1.0, key="snr_r")
         theta_deg = st.slider("角度 θ (度)", 0, 180, 90, key="snr_theta")
-    with col2:
         P_tx_dB = st.slider("发射功率 (dBm)", 0, 50, 30, key="snr_ptx")
         sigma2_dB = st.slider("噪声功率 (dBm)", -100, 0, -60, key="snr_noise")
-    with col3:
+        st.markdown("---")
+        st.markdown("##### M 扫描范围")
         M_min = st.number_input("M 最小值 (10^x)", 1, 7, 1, key="snr_mmin")
         M_max = st.number_input("M 最大值 (10^x)", 1, 7, 7, key="snr_mmax")
 
-    theta = np.radians(theta_deg)
-    M_list = np.array([10**x for x in range(M_min, M_max + 1)])
+    with main_col:
+        theta = np.radians(theta_deg)
+        M_list = np.array([10**x for x in range(M_min, M_max + 1)])
 
-    with st.spinner("计算 SNR..."):
-        snr_upw, snr_nusw, snr_formula, snr_limit = compute_snr_scaling(
-            M_list, r_user, theta, fc_global * 1e9, P_tx_dB, sigma2_dB
-        )
+        with st.spinner("计算 SNR..."):
+            snr_upw, snr_nusw, snr_formula, snr_limit = compute_snr_scaling(
+                M_list, r_user, theta, fc_global * 1e9, P_tx_dB, sigma2_dB
+            )
 
-    eps = 1e-30
-    snr_upw_dB = 10 * np.log10(np.array(snr_upw) + eps)
-    snr_nusw_dB = 10 * np.log10(np.array(snr_nusw) + eps)
-    snr_formula_dB = 10 * np.log10(np.array(snr_formula) + eps)
-    snr_limit_dB = 10 * np.log10(snr_limit + eps)
+        eps = 1e-30
+        snr_upw_dB = 10 * np.log10(np.array(snr_upw) + eps)
+        snr_nusw_dB = 10 * np.log10(np.array(snr_nusw) + eps)
+        snr_formula_dB = 10 * np.log10(np.array(snr_formula) + eps)
+        snr_limit_dB = 10 * np.log10(snr_limit + eps)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(M_list, snr_upw_dB, "b-o", linewidth=2, markersize=6, label="UPW (远场)")
-    ax.plot(M_list, snr_nusw_dB, "r-s", linewidth=2, markersize=6, label="NUSW 向量法")
-    ax.plot(M_list, snr_formula_dB, "g-^", linewidth=2, markersize=6, label="NUSW 解析公式")
-    ax.axhline(y=snr_limit_dB, color="k", linestyle="--", linewidth=2,
-               label=f"能量守恒上限 ({snr_limit_dB:.1f} dB)")
-    ax.set_xscale("log")
-    ax.set_xlabel("天线数量 M")
-    ax.set_ylabel("接收 SNR (dB)")
-    ax.set_title(f"SNR 缩放律 (r={r_user}m, θ={theta_deg}°, f={fc_global}GHz)")
-    ax.legend(fontsize=10)
-    ax.grid(True, which="both", linestyle=":", alpha=0.7)
-    st.pyplot(fig)
-    plt.close(fig)
+        fig, ax = plt.subplots(figsize=(7, 4))
+        ax.plot(M_list, snr_upw_dB, "b-o", linewidth=2, markersize=6, label="UPW (远场)")
+        ax.plot(M_list, snr_nusw_dB, "r-s", linewidth=2, markersize=6, label="NUSW 向量法")
+        ax.plot(M_list, snr_formula_dB, "g-^", linewidth=2, markersize=6, label="NUSW 解析公式")
+        ax.axhline(y=snr_limit_dB, color="k", linestyle="--", linewidth=2,
+                   label=f"能量守恒上限 ({snr_limit_dB:.1f} dB)")
+        ax.set_xscale("log")
+        ax.set_xlabel("天线数量 M")
+        ax.set_ylabel("接收 SNR (dB)")
+        ax.set_title(f"SNR 缩放律 (r={r_user}m, θ={theta_deg}°, f={fc_global}GHz)")
+        ax.legend(fontsize=9)
+        ax.grid(True, which="both", linestyle=":", alpha=0.7)
+        st.pyplot(fig)
+        plt.close(fig)
 
-    # 结论
-    st.markdown("---")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("UPW 最终 SNR", f"{snr_upw_dB[-1]:.1f} dB",
-              delta="超出上限" if snr_upw_dB[-1] > snr_limit_dB else "符合")
-    c2.metric("NUSW 向量法 SNR", f"{snr_nusw_dB[-1]:.1f} dB")
-    c3.metric("NUSW 解析公式 SNR", f"{snr_formula_dB[-1]:.1f} dB")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("UPW 最终 SNR", f"{snr_upw_dB[-1]:.1f} dB",
+                  delta="超出上限" if snr_upw_dB[-1] > snr_limit_dB else "符合")
+        c2.metric("NUSW 向量法 SNR", f"{snr_nusw_dB[-1]:.1f} dB")
+        c3.metric("NUSW 解析公式 SNR", f"{snr_formula_dB[-1]:.1f} dB")
 
 
 # ==================== 模块: EDoF 分析 ====================
@@ -366,77 +369,77 @@ $$\rho = \frac{D_{t,\text{eff}}}{D_{t,\text{phys}}} = \frac{\text{EDoF} \cdot \l
 此时应优先优化接收端算法或增加接收天线，而非继续增加发射天线。
 """)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    main_col, ctrl_col = st.columns([3, 1])
+
+    with ctrl_col:
+        st.markdown("##### 参数设置")
         Mr = st.slider("接收天线数 Mr", 4, 64, 16, key="edof_mr")
         r_user = st.number_input("用户距离 r (m)", 0.1, 50.0, 1.0, step=0.1, key="edof_r")
-    with col2:
+        st.markdown("---")
+        st.markdown("##### Mt 扫描范围")
         Mt_start = st.number_input("Mt 起始值", 10, 500, 10, key="edof_mt_start")
         Mt_end = st.number_input("Mt 结束值", 50, 2000, 500, key="edof_mt_end")
         Mt_step = st.number_input("Mt 步长", 5, 100, 20, key="edof_mt_step")
-    with col3:
+        st.markdown("---")
         threshold = st.slider("EDoF 阈值", 0.01, 0.9, 0.3, step=0.01, key="edof_thr")
 
-    Mt_list = list(range(int(Mt_start), int(Mt_end) + 1, int(Mt_step)))
+    with main_col:
+        Mt_list = list(range(int(Mt_start), int(Mt_end) + 1, int(Mt_step)))
 
-    with st.spinner(f"扫描 Mt: {Mt_list[0]} → {Mt_list[-1]} (SVD 计算中)..."):
-        edof_sim, edof_theory, energy_conc, ap_ratio = compute_edof_sweep(
-            Mt_list, Mr, r_user, fc_global * 1e9, threshold
-        )
+        with st.spinner(f"扫描 Mt: {Mt_list[0]} → {Mt_list[-1]} (SVD 计算中)..."):
+            edof_sim, edof_theory, energy_conc, ap_ratio = compute_edof_sweep(
+                Mt_list, Mr, r_user, fc_global * 1e9, threshold
+            )
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle(f"近场 XL-MIMO 信道分析 (Mr={Mr}, r={r_user}m)")
+        fig, axes = plt.subplots(2, 2, figsize=(9, 7))
+        fig.suptitle(f"近场 XL-MIMO 信道分析 (Mr={Mr}, r={r_user}m)")
 
-    # 图1: EDoF
-    ax1 = axes[0, 0]
-    ax1.plot(Mt_list, edof_sim, "b-o", markersize=3, label=f"仿真 EDoF (thr={threshold})")
-    ax1.plot(Mt_list, edof_theory, "r-", linewidth=2, label="理论上限 (bounded)")
-    ax1.axhline(y=Mr, color="gray", linestyle=":", label=f"Mr 上限 ({Mr})")
-    ax1.set_xlabel("发射天线数 Mt")
-    ax1.set_ylabel("EDoF")
-    ax1.set_title("有效自由度")
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
+        ax1 = axes[0, 0]
+        ax1.plot(Mt_list, edof_sim, "b-o", markersize=3, label=f"仿真 EDoF (thr={threshold})")
+        ax1.plot(Mt_list, edof_theory, "r-", linewidth=2, label="理论上限 (bounded)")
+        ax1.axhline(y=Mr, color="gray", linestyle=":", label=f"Mr 上限 ({Mr})")
+        ax1.set_xlabel("发射天线数 Mt")
+        ax1.set_ylabel("EDoF")
+        ax1.set_title("有效自由度")
+        ax1.legend(fontsize=8)
+        ax1.grid(True, alpha=0.3)
 
-    # 图2: 能量集中度
-    ax2 = axes[0, 1]
-    ax2.plot(Mt_list, energy_conc, "m-s", markersize=3, linewidth=2)
-    ax2.fill_between(Mt_list, energy_conc, alpha=0.2, color="magenta")
-    ax2.axhline(y=0.9, color="gray", linestyle="--", label="90% 参考线")
-    ax2.set_ylim([0, 1.05])
-    ax2.set_xlabel("发射天线数 Mt")
-    ax2.set_ylabel("能量集中度")
-    ax2.set_title("前 EDoF 个模式携带的能量占比")
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
+        ax2 = axes[0, 1]
+        ax2.plot(Mt_list, energy_conc, "m-s", markersize=3, linewidth=2)
+        ax2.fill_between(Mt_list, energy_conc, alpha=0.2, color="magenta")
+        ax2.axhline(y=0.9, color="gray", linestyle="--", label="90% 参考线")
+        ax2.set_ylim([0, 1.05])
+        ax2.set_xlabel("发射天线数 Mt")
+        ax2.set_ylabel("能量集中度")
+        ax2.set_title("前 EDoF 个模式携带的能量占比")
+        ax2.legend(fontsize=8)
+        ax2.grid(True, alpha=0.3)
 
-    # 图3: 孔径利用率
-    ax3 = axes[1, 0]
-    ax3.plot(Mt_list, ap_ratio, "g-^", markersize=3)
-    ax3.axhline(y=1.0, color="k", linestyle=":", label="理想 100%")
-    ax3.set_xlabel("发射天线数 Mt")
-    ax3.set_ylabel("有效孔径利用率")
-    ax3.set_title("物理孔径 vs 有效孔径")
-    ax3.legend()
-    ax3.grid(True, alpha=0.3)
+        ax3 = axes[1, 0]
+        ax3.plot(Mt_list, ap_ratio, "g-^", markersize=3)
+        ax3.axhline(y=1.0, color="k", linestyle=":", label="理想 100%")
+        ax3.set_xlabel("发射天线数 Mt")
+        ax3.set_ylabel("有效孔径利用率")
+        ax3.set_title("物理孔径 vs 有效孔径")
+        ax3.legend(fontsize=8)
+        ax3.grid(True, alpha=0.3)
 
-    # 图4: 相对误差
-    ax4 = axes[1, 1]
-    errors = [abs(s - t) / max(t, 1) * 100 for s, t in zip(edof_sim, edof_theory)]
-    ax4.plot(Mt_list, errors, "k-x", linewidth=1.5)
-    ax4.set_xlabel("发射天线数 Mt")
-    ax4.set_ylabel("相对误差 (%)")
-    ax4.set_title("仿真 vs 理论误差")
-    ax4.grid(True, alpha=0.3)
+        ax4 = axes[1, 1]
+        errors = [abs(s - t) / max(t, 1) * 100 for s, t in zip(edof_sim, edof_theory)]
+        ax4.plot(Mt_list, errors, "k-x", linewidth=1.5)
+        ax4.set_xlabel("发射天线数 Mt")
+        ax4.set_ylabel("相对误差 (%)")
+        ax4.set_title("仿真 vs 理论误差")
+        ax4.grid(True, alpha=0.3)
 
-    st.pyplot(fig)
-    plt.close(fig)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
 
-    # 结论
-    peak_idx = int(np.argmax(edof_sim))
-    st.markdown(f"**EDoF 峰值**: Mt={Mt_list[peak_idx]}, EDoF={edof_sim[peak_idx]}  |  "
-                f"**最终能量集中度**: {energy_conc[-1] * 100:.1f}%  |  "
-                f"**最终孔径利用率**: {ap_ratio[-1] * 100:.1f}%")
+        peak_idx = int(np.argmax(edof_sim))
+        st.markdown(f"**EDoF 峰值**: Mt={Mt_list[peak_idx]}, EDoF={edof_sim[peak_idx]}  |  "
+                    f"**最终能量集中度**: {energy_conc[-1] * 100:.1f}%  |  "
+                    f"**最终孔径利用率**: {ap_ratio[-1] * 100:.1f}%")
 
 
 # ==================== 模块: 波束聚焦 ====================
@@ -478,108 +481,109 @@ $G = 1$ (即 0 dB) 表示完美匹配，$G \ll 1$ 表示失配。
 
     c = 3e8
     lam = c / (fc_global * 1e9)
+    d = lam / 2
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    main_col, ctrl_col = st.columns([3, 1])
+
+    with ctrl_col:
+        st.markdown("##### 参数设置")
         M = st.slider("天线数量 M", 32, 1024, 512, step=32, key="beam_M")
         r_target = st.number_input("目标距离 r (m)", 5.0, 500.0, 100.0, step=5.0, key="beam_r")
-    with col2:
         theta_target_deg = st.slider("目标角度 θ (度)", 10, 170, 90, key="beam_theta")
         theta_target = np.radians(theta_target_deg)
-    with col3:
+        st.markdown("---")
+        st.markdown("##### 计算精度")
         grid_size = st.slider("网格分辨率", 50, 300, 150, step=10, key="beam_grid")
-        d = lam / 2
+        st.markdown("---")
         st.metric("波长 λ", f"{lam * 1000:.2f} mm")
 
-    r_grid = np.linspace(max(5, r_target * 0.3), r_target * 2.0, grid_size)
-    theta_grid = np.linspace(np.pi / 6, 5 * np.pi / 6, grid_size)
+    with main_col:
+        r_grid = np.linspace(max(5, r_target * 0.3), r_target * 2.0, grid_size)
+        theta_grid = np.linspace(np.pi / 6, 5 * np.pi / 6, grid_size)
 
-    with st.spinner("计算波束聚焦增益网格 (可能需要数秒)..."):
-        gain_nf, gain_ff = compute_beam_gain_grid(
-            r_grid, theta_grid, r_target, theta_target, M, d, lam
+        with st.spinner("计算波束聚焦增益网格 (可能需要数秒)..."):
+            gain_nf, gain_ff = compute_beam_gain_grid(
+                r_grid, theta_grid, r_target, theta_target, M, d, lam
+            )
+
+        fig1, axes = plt.subplots(1, 2, figsize=(9, 4))
+
+        im1 = axes[0].pcolormesh(
+            r_grid, np.degrees(theta_grid), 20 * np.log10(gain_nf + 1e-10),
+            shading="auto", cmap="hot",
+        )
+        axes[0].plot(r_target, theta_target_deg, "o", markersize=10,
+                     markerfacecolor="none", markeredgecolor="cyan", markeredgewidth=2)
+        axes[0].set_xlabel("距离 r (m)")
+        axes[0].set_ylabel("角度 θ (度)")
+        axes[0].set_title("近场 NUSW 波束 (聚光灯)")
+        plt.colorbar(im1, ax=axes[0], label="归一化增益 (dB)")
+        axes[0].grid(True, linestyle=":", alpha=0.5)
+
+        im2 = axes[1].pcolormesh(
+            r_grid, np.degrees(theta_grid), 20 * np.log10(gain_ff + 1e-10),
+            shading="auto", cmap="hot",
+        )
+        axes[1].plot(r_target, theta_target_deg, "o", markersize=10,
+                     markerfacecolor="none", markeredgecolor="cyan", markeredgewidth=2)
+        axes[1].set_xlabel("距离 r (m)")
+        axes[1].set_ylabel("角度 θ (度)")
+        axes[1].set_title("远场 DFT 波束 (能量扩散)")
+        plt.colorbar(im2, ax=axes[1], label="归一化增益 (dB)")
+        axes[1].grid(True, linestyle=":", alpha=0.5)
+
+        st.pyplot(fig1)
+        plt.close(fig1)
+
+        st.subheader("目标方向增益随距离变化")
+        r_curve = np.linspace(max(5, r_target * 0.3), r_target * 2.0, 500)
+        gain_nf_curve, gain_ff_curve = compute_beam_gain_curve(
+            r_curve, theta_target, r_target, M, d, lam
         )
 
-    # 图1: 2D 增益热力图
-    fig1, axes = plt.subplots(1, 2, figsize=(16, 6))
+        gain_nf_dB = 20 * np.log10(gain_nf_curve + 1e-10)
+        gain_ff_dB = 20 * np.log10(gain_ff_curve + 1e-10)
 
-    im1 = axes[0].pcolormesh(
-        r_grid, np.degrees(theta_grid), 20 * np.log10(gain_nf + 1e-10),
-        shading="auto", cmap="hot",
-    )
-    axes[0].plot(r_target, theta_target_deg, "o", markersize=12,
-                 markerfacecolor="none", markeredgecolor="cyan", markeredgewidth=2)
-    axes[0].set_xlabel("距离 r (m)")
-    axes[0].set_ylabel("角度 θ (度)")
-    axes[0].set_title("近场 NUSW 波束 (聚光灯)")
-    plt.colorbar(im1, ax=axes[0], label="归一化增益 (dB)")
-    axes[0].grid(True, linestyle=":", alpha=0.5)
+        fig2, ax = plt.subplots(figsize=(7, 3.5))
+        ax.plot(r_curve, gain_nf_dB, "r-", linewidth=2.5, label="近场 NUSW 波束")
+        ax.plot(r_curve, gain_ff_dB, "b--", linewidth=2.5, label="远场 DFT 波束")
+        target_idx = np.argmin(np.abs(r_curve - r_target))
+        ax.axvline(x=r_target, color="gray", linestyle=":", linewidth=1.5, alpha=0.7)
+        ax.plot(r_target, gain_nf_dB[target_idx], "o", markersize=12,
+                markerfacecolor="none", markeredgecolor="red", markeredgewidth=2.5)
 
-    im2 = axes[1].pcolormesh(
-        r_grid, np.degrees(theta_grid), 20 * np.log10(gain_ff + 1e-10),
-        shading="auto", cmap="hot",
-    )
-    axes[1].plot(r_target, theta_target_deg, "o", markersize=12,
-                 markerfacecolor="none", markeredgecolor="cyan", markeredgewidth=2)
-    axes[1].set_xlabel("距离 r (m)")
-    axes[1].set_ylabel("角度 θ (度)")
-    axes[1].set_title("远场 DFT 波束 (能量扩散)")
-    plt.colorbar(im2, ax=axes[1], label="归一化增益 (dB)")
-    axes[1].grid(True, linestyle=":", alpha=0.5)
+        D_ap = M * d
+        r_hp = 0.1 * np.sin(theta_target)**2 * (2 * D_ap**2 / lam)
+        omega_res = 1.0 / r_hp
+        r1_res = 1.0 / (1.0 / r_target + omega_res)
+        r2_res = 1.0 / (1.0 / r_target - omega_res)
+        delta_r_res = r2_res - r1_res
 
-    st.pyplot(fig1)
-    plt.close(fig1)
+        ax.axvline(x=r1_res, color="green", linestyle="--", linewidth=1.5, alpha=0.8)
+        ax.axvline(x=r2_res, color="green", linestyle="--", linewidth=1.5, alpha=0.8)
+        ax.axvspan(r1_res, r2_res, alpha=0.12, color="green")
 
-    # 图2: 距离方向切面
-    st.subheader("目标方向增益随距离变化")
-    r_curve = np.linspace(max(5, r_target * 0.3), r_target * 2.0, 500)
-    gain_nf_curve, gain_ff_curve = compute_beam_gain_curve(
-        r_curve, theta_target, r_target, M, d, lam
-    )
+        peak_gain = gain_nf_dB[target_idx]
+        ax.annotate("",
+                    xy=(r1_res, peak_gain + 1.5),
+                    xytext=(r2_res, peak_gain + 1.5),
+                    arrowprops=dict(arrowstyle="<->", color="green", lw=2))
+        ax.text((r1_res + r2_res) / 2, peak_gain + 2.2,
+                f"$\\delta r$ = {delta_r_res:.2f} m",
+                ha="center", va="bottom", fontsize=11, color="green", fontweight="bold")
+        ax.text(r1_res, ax.get_ylim()[0] + 1, f"$r_1$={r1_res:.1f}m",
+                ha="center", fontsize=9, color="green")
+        ax.text(r2_res, ax.get_ylim()[0] + 1, f"$r_2$={r2_res:.1f}m",
+                ha="center", fontsize=9, color="green")
 
-    gain_nf_dB = 20 * np.log10(gain_nf_curve + 1e-10)
-    gain_ff_dB = 20 * np.log10(gain_ff_curve + 1e-10)
-
-    fig2, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(r_curve, gain_nf_dB, "r-", linewidth=2.5, label="近场 NUSW 波束")
-    ax.plot(r_curve, gain_ff_dB, "b--", linewidth=2.5, label="远场 DFT 波束")
-    target_idx = np.argmin(np.abs(r_curve - r_target))
-    ax.axvline(x=r_target, color="gray", linestyle=":", linewidth=1.5, alpha=0.7)
-    ax.plot(r_target, gain_nf_dB[target_idx], "o", markersize=12,
-            markerfacecolor="none", markeredgecolor="red", markeredgewidth=2.5)
-
-    # 距离分辨率标注
-    D_ap = M * d
-    r_hp = 0.1 * np.sin(theta_target)**2 * (2 * D_ap**2 / lam)
-    omega_res = 1.0 / r_hp
-    r1_res = 1.0 / (1.0 / r_target + omega_res)
-    r2_res = 1.0 / (1.0 / r_target - omega_res)
-    delta_r_res = r2_res - r1_res
-
-    ax.axvline(x=r1_res, color="green", linestyle="--", linewidth=1.5, alpha=0.8)
-    ax.axvline(x=r2_res, color="green", linestyle="--", linewidth=1.5, alpha=0.8)
-    ax.axvspan(r1_res, r2_res, alpha=0.12, color="green")
-
-    peak_gain = gain_nf_dB[target_idx]
-    ax.annotate("",
-                xy=(r1_res, peak_gain + 1.5),
-                xytext=(r2_res, peak_gain + 1.5),
-                arrowprops=dict(arrowstyle="<->", color="green", lw=2))
-    ax.text((r1_res + r2_res) / 2, peak_gain + 2.2,
-            f"$\\delta r$ = {delta_r_res:.2f} m",
-            ha="center", va="bottom", fontsize=11, color="green", fontweight="bold")
-    ax.text(r1_res, ax.get_ylim()[0] + 1, f"$r_1$={r1_res:.1f}m",
-            ha="center", fontsize=9, color="green")
-    ax.text(r2_res, ax.get_ylim()[0] + 1, f"$r_2$={r2_res:.1f}m",
-            ha="center", fontsize=9, color="green")
-
-    ax.set_xlabel("距离 r (m)")
-    ax.set_ylabel("归一化增益 (dB)")
-    ax.set_title(f"波束增益随距离变化 (θ = {theta_target_deg}°, $\\delta r$ = {delta_r_res:.2f} m)")
-    ax.legend()
-    ax.grid(True, linestyle=":", alpha=0.5)
-    ax.set_ylim([-40, 2])
-    st.pyplot(fig2)
-    plt.close(fig2)
+        ax.set_xlabel("距离 r (m)")
+        ax.set_ylabel("归一化增益 (dB)")
+        ax.set_title(f"波束增益随距离变化 (θ = {theta_target_deg}°, $\\delta r$ = {delta_r_res:.2f} m)")
+        ax.legend()
+        ax.grid(True, linestyle=":", alpha=0.5)
+        ax.set_ylim([-40, 2])
+        st.pyplot(fig2)
+        plt.close(fig2)
 
 
 # ==================== 模块: 距离分辨率 ====================
@@ -623,94 +627,93 @@ $$\delta r \approx \frac{2r^2}{r_{\text{hp}}}$$
 
     c = 3e8
     lam = c / (fc_global * 1e9)
+    d = lam / 2
 
-    col1, col2 = st.columns(2)
-    with col1:
+    main_col, ctrl_col = st.columns([3, 1])
+
+    with ctrl_col:
+        st.markdown("##### 参数设置")
         M = st.slider("天线数量 M", 32, 1024, 512, step=32, key="res_M")
         theta_prime_deg = st.slider("角度 θ (度)", 10, 170, 90, key="res_theta")
-    with col2:
-        d = lam / 2
-        D = M * d
         theta_prime = np.radians(theta_prime_deg)
+        st.markdown("---")
+        D = M * d
         r_hp = 0.1 * np.sin(theta_prime) ** 2 * (2 * D**2 / lam)
         st.metric("阵列孔径 D", f"{D:.2f} m")
         st.metric("半功率有效距离 r_hp", f"{r_hp:.1f} m")
         st.metric("波长 λ", f"{lam * 1000:.2f} mm")
 
-    r_max = r_hp / 5.0
-    r_array = np.linspace(max(1, r_max * 0.01), r_max, 2000)
+    with main_col:
+        r_max = r_hp / 5.0
+        r_array = np.linspace(max(1, r_max * 0.01), r_max, 2000)
 
-    r1, r2, delta_r, delta_r_approx, _ = compute_distance_resolution(
-        r_array, M, d, lam, theta_prime
-    )
+        r1, r2, delta_r, delta_r_approx, _ = compute_distance_resolution(
+            r_array, M, d, lam, theta_prime
+        )
 
-    # 图1: delta_r vs r (线性)
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        fig, axes = plt.subplots(2, 2, figsize=(9, 7))
 
-    ax1 = axes[0, 0]
-    ax1.plot(r_array, delta_r, "b-", linewidth=2.5, label="精确值")
-    ax1.plot(r_array, delta_r_approx, "g--", linewidth=2, label="近似 $2r^2/r_{hp}$")
-    ax1.set_xlabel("聚焦距离 r (m)")
-    ax1.set_ylabel("距离分辨率 δr (m)")
-    ax1.set_title("距离分辨率 vs 聚焦距离 (线性)")
-    ax1.legend()
-    ax1.grid(True, linestyle=":", alpha=0.5)
+        ax1 = axes[0, 0]
+        ax1.plot(r_array, delta_r, "b-", linewidth=2.5, label="精确值")
+        ax1.plot(r_array, delta_r_approx, "g--", linewidth=2, label="近似 $2r^2/r_{hp}$")
+        ax1.set_xlabel("聚焦距离 r (m)")
+        ax1.set_ylabel("距离分辨率 δr (m)")
+        ax1.set_title("距离分辨率 vs 聚焦距离 (线性)")
+        ax1.legend(fontsize=8)
+        ax1.grid(True, linestyle=":", alpha=0.5)
 
-    # 图2: 双对数
-    ax2 = axes[0, 1]
-    ax2.loglog(r_array, delta_r, "b-", linewidth=2.5, label="精确值")
-    ax2.loglog(r_array, delta_r_approx, "g--", linewidth=2, label="近似 (斜率=2)")
-    ax2.set_xlabel("聚焦距离 r (m)")
-    ax2.set_ylabel("距离分辨率 δr (m)")
-    ax2.set_title("距离分辨率 vs 聚焦距离 (双对数)")
-    ax2.legend()
-    ax2.grid(True, linestyle=":", alpha=0.5, which="both")
+        ax2 = axes[0, 1]
+        ax2.loglog(r_array, delta_r, "b-", linewidth=2.5, label="精确值")
+        ax2.loglog(r_array, delta_r_approx, "g--", linewidth=2, label="近似 (斜率=2)")
+        ax2.set_xlabel("聚焦距离 r (m)")
+        ax2.set_ylabel("距离分辨率 δr (m)")
+        ax2.set_title("距离分辨率 vs 聚焦距离 (双对数)")
+        ax2.legend(fontsize=8)
+        ax2.grid(True, linestyle=":", alpha=0.5, which="both")
 
-    # 图3: r1, r, r2
-    ax3 = axes[1, 0]
-    ax3.plot(r_array, r1, "g-", linewidth=2, label="$r_1$ (最近可分辨)")
-    ax3.plot(r_array, r_array, "k--", linewidth=1.5, label="$r$ (聚焦距离)")
-    ax3.plot(r_array, r2, "r-", linewidth=2, label="$r_2$ (最远可分辨)")
-    ax3.fill_between(r_array, r1, r2, alpha=0.15, color="orange", label="不可分辨区域")
-    ax3.set_xlabel("聚焦距离 r (m)")
-    ax3.set_ylabel("距离 (m)")
-    ax3.set_title("不可分辨区域 [$r_1$, $r_2$]")
-    ax3.legend(fontsize=9)
-    ax3.grid(True, linestyle=":", alpha=0.5)
+        ax3 = axes[1, 0]
+        ax3.plot(r_array, r1, "g-", linewidth=2, label="$r_1$ (最近可分辨)")
+        ax3.plot(r_array, r_array, "k--", linewidth=1.5, label="$r$ (聚焦距离)")
+        ax3.plot(r_array, r2, "r-", linewidth=2, label="$r_2$ (最远可分辨)")
+        ax3.fill_between(r_array, r1, r2, alpha=0.15, color="orange", label="不可分辨区域")
+        ax3.set_xlabel("聚焦距离 r (m)")
+        ax3.set_ylabel("距离 (m)")
+        ax3.set_title("不可分辨区域 [$r_1$, $r_2$]")
+        ax3.legend(fontsize=8)
+        ax3.grid(True, linestyle=":", alpha=0.5)
 
-    # 图4: 典型值
-    ax4 = axes[1, 1]
-    n_examples = min(10, int(len(r_array) / 200))
-    example_indices = np.linspace(int(len(r_array) * 0.05), int(len(r_array) * 0.95), n_examples).astype(int)
-    cmap = plt.cm.turbo(np.linspace(0, 1, len(example_indices)))
-    for idx, ei in enumerate(example_indices):
-        r_ex = r_array[ei]
-        r1_ex, r2_ex = r1[ei], r2[ei]
-        dr_ex = r2_ex - r1_ex
-        ax4.plot([r1_ex, r2_ex], [r_ex, r_ex], "-o", color=cmap[idx], linewidth=3,
-                 markersize=7, markerfacecolor="none",
-                 label=f"r={r_ex:.0f}m: δr={dr_ex:.1f}m")
-    ax4.plot(r_array, r_array, "k--", linewidth=1, alpha=0.3)
-    ax4.set_xlabel("距离 (m)")
-    ax4.set_ylabel("聚焦距离 r (m)")
-    ax4.set_title("各聚焦距离处的不可分辨区间")
-    ax4.legend(fontsize=8, loc="upper left")
-    ax4.grid(True, linestyle=":", alpha=0.5)
+        ax4 = axes[1, 1]
+        n_examples = min(10, int(len(r_array) / 200))
+        example_indices = np.linspace(int(len(r_array) * 0.05), int(len(r_array) * 0.95), n_examples).astype(int)
+        cmap = plt.cm.turbo(np.linspace(0, 1, len(example_indices)))
+        for idx, ei in enumerate(example_indices):
+            r_ex = r_array[ei]
+            r1_ex, r2_ex = r1[ei], r2[ei]
+            dr_ex = r2_ex - r1_ex
+            ax4.plot([r1_ex, r2_ex], [r_ex, r_ex], "-o", color=cmap[idx], linewidth=3,
+                     markersize=7, markerfacecolor="none",
+                     label=f"r={r_ex:.0f}m: δr={dr_ex:.1f}m")
+        ax4.plot(r_array, r_array, "k--", linewidth=1, alpha=0.3)
+        ax4.set_xlabel("距离 (m)")
+        ax4.set_ylabel("聚焦距离 r (m)")
+        ax4.set_title("各聚焦距离处的不可分辨区间")
+        ax4.legend(fontsize=7, loc="upper left")
+        ax4.grid(True, linestyle=":", alpha=0.5)
 
-    st.pyplot(fig)
-    plt.close(fig)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
 
-    # 典型值表格
-    st.subheader("典型距离处的分辨率数值")
-    n_table = min(10, int(len(r_array) / 200))
-    table_indices = np.linspace(int(len(r_array) * 0.1), int(len(r_array) * 0.9), n_table).astype(int)
-    table_data = {
-        "聚焦距离 r (m)": [f"{r_array[i]:.1f}" for i in table_indices],
-        "r₁ (m)": [f"{r1[i]:.2f}" for i in table_indices],
-        "r₂ (m)": [f"{r2[i]:.2f}" for i in table_indices],
-        "δr (m)": [f"{(r2[i] - r1[i]):.2f}" for i in table_indices],
-    }
-    st.table(table_data)
+        st.subheader("典型距离处的分辨率数值")
+        n_table = min(10, int(len(r_array) / 200))
+        table_indices = np.linspace(int(len(r_array) * 0.1), int(len(r_array) * 0.9), n_table).astype(int)
+        table_data = {
+            "聚焦距离 r (m)": [f"{r_array[i]:.1f}" for i in table_indices],
+            "r₁ (m)": [f"{r1[i]:.2f}" for i in table_indices],
+            "r₂ (m)": [f"{r2[i]:.2f}" for i in table_indices],
+            "δr (m)": [f"{(r2[i] - r1[i]):.2f}" for i in table_indices],
+        }
+        st.table(table_data)
 
 
 # ==================== 路由 ====================
