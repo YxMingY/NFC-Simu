@@ -9,8 +9,24 @@ sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 import os
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
 
 block_cipher = None
+
+# 收集 scipy 和 pyarrow 的 DLL (解决 DLL load failed)
+extra_binaries = []
+for pkg in ['scipy', 'pyarrow']:
+    try:
+        extra_binaries += collect_dynamic_libs(pkg)
+    except Exception:
+        pass
+
+# 收集 pyarrow 数据文件
+extra_datas = []
+try:
+    extra_datas += collect_data_files('pyarrow')
+except Exception:
+    pass
 
 # 收集项目文件
 project_datas = []
@@ -50,8 +66,8 @@ except Exception as e:
 a = Analysis(
     ['launcher.py'],
     pathex=[],
-    binaries=[],
-    datas=project_datas,
+    binaries=extra_binaries,
+    datas=project_datas + extra_datas,
     hiddenimports=[
         'streamlit',
         'streamlit.web',
@@ -79,6 +95,23 @@ a = Analysis(
         'matplotlib.backends.backend_agg',
         'scipy',
         'scipy.linalg',
+        'scipy.linalg.blas',
+        'scipy.linalg.lapack',
+        'scipy.linalg._fblas',
+        'scipy.linalg._flapack',
+        'scipy._lib',
+        'scipy._lib.messagestream',
+        'pyarrow',
+        'pyarrow.lib',
+        'pyarrow._compute',
+        'pyarrow._csv',
+        'pyarrow._dataset',
+        'pyarrow._feather',
+        'pyarrow._json',
+        'pyarrow._parquet',
+        'pyarrow.fs',
+        'pyarrow.ipc',
+        'pyarrow.table',
     ],
     hookspath=[],
     hooksconfig={},
@@ -116,7 +149,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,  # 显示控制台以便调试
