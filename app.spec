@@ -13,11 +13,19 @@ from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
 block_cipher = None
 
 # 收集 pyarrow DLL 和数据文件 (streamlit 内部依赖)
+# DLL 放到根目录，确保 runtime hook 的 DLL 搜索路径能覆盖
 extra_binaries = []
 extra_datas = []
 try:
-    extra_binaries += collect_dynamic_libs('pyarrow')
+    for src, _ in collect_dynamic_libs('pyarrow'):
+        extra_binaries.append((src, '.'))
     extra_datas += collect_data_files('pyarrow')
+    # pyarrow.libs/ 目录包含 MSVC 运行时 DLL (collect_dynamic_libs 不会扫描)
+    import pyarrow
+    pyarrow_libs = Path(pyarrow.__file__).parent.parent / "pyarrow.libs"
+    if pyarrow_libs.exists():
+        for dll in pyarrow_libs.glob("*.dll"):
+            extra_binaries.append((str(dll), '.'))
 except Exception:
     pass
 
