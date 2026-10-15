@@ -124,10 +124,9 @@ $$\delta r \approx \frac{2r^2}{r_{\text{hp}}}$$
         st.subheader("典型距离处的分辨率数值")
         n_table = min(10, int(len(r_array) / 200))
         table_indices = np.linspace(int(len(r_array) * 0.1), int(len(r_array) * 0.9), n_table).astype(int)
-        table_data = {
-            "聚焦距离 r (m)": [f"{r_array[i]:.1f}" for i in table_indices],
-            "r₁ (m)": [f"{r1[i]:.2f}" for i in table_indices],
-            "r₂ (m)": [f"{r2[i]:.2f}" for i in table_indices],
-            "δr (m)": [f"{(r2[i] - r1[i]):.2f}" for i in table_indices],
-        }
-        st.dataframe(table_data, use_container_width=True)
+        headers = ["聚焦距离 r (m)", "r₁ (m)", "r₂ (m)", "δr (m)"]
+        md = "| " + " | ".join(headers) + " |\n"
+        md += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+        for i in table_indices:
+            md += f"| {r_array[i]:.1f} | {r1[i]:.2f} | {r2[i]:.2f} | {r2[i] - r1[i]:.2f} |\n"
+        st.markdown(md)
