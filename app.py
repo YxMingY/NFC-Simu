@@ -4,7 +4,7 @@
 """
 import streamlit as st
 import matplotlib.pyplot as plt
-from pages import MODULE_MAP
+from modules import MODULE_MAP
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Arial Unicode MS"]
 plt.rcParams["axes.unicode_minus"] = False

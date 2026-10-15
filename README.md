@@ -20,13 +20,18 @@
 ```
 ├── app.py              # Streamlit 入口 (侧边栏导航 + 路由)
 ├── core.py             # 核心计算函数 (NUSW 响应、SNR、EDoF、波束增益等)
-├── pages/              # 按模块拆分的页面
+├── modules/            # 按模块拆分的页面
+│   ├── __init__.py     # 模块注册表
 │   ├── nusw.py         # NUSW 阵列响应
 │   ├── region.py       # 近场区域划分
 │   ├── snr.py          # SNR 缩放律
 │   ├── edof.py         # EDoF 分析
 │   ├── beam.py         # 波束聚焦
 │   └── resolution.py   # 距离分辨率
+├── launcher.py         # PyInstaller 打包入口
+├── app.spec            # PyInstaller 打包配置
+├── build.py            # 打包脚本
+├── build.bat           # Windows 一键打包
 ├── requirements.txt    # Python 依赖
 └── run.bat             # Windows 一键启动脚本
 ```
@@ -52,6 +57,27 @@ streamlit run app.py
 ```
 
 启动后浏览器会自动打开 `http://localhost:8501`。如未自动打开，请手动访问该地址。
+
+## 打包为 EXE
+
+将应用打包为可分发的 Windows 程序，用户无需安装 Python 即可运行。
+
+**一键打包 (Windows)**
+
+```
+双击 build.bat
+```
+
+**命令行打包**
+
+```bash
+pip install pyinstaller
+python build.py
+```
+
+打包完成后，在 `dist/6G_NearField_XL-MIMO/` 目录下生成可执行文件。将整个文件夹分发给其他用户，双击 exe 即可运行。
+
+> 注意：打包后的文件夹约 300-500 MB，因为包含了完整的 Python 运行环境和所有依赖。
 
 ## 使用方式
 

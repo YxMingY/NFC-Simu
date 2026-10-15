@@ -3,3 +3,6 @@ __pycache__/
 .ipynb_checkpoints/
 *.pyo
 .env/
+build/
+dist/
+6G_NearField_XL-MIMO.spec
