@@ -21,6 +21,24 @@ try:
 except Exception:
     pass
 
+# 收集 conda Library/bin 中 PIL/matplotlib 原生扩展依赖的 DLL
+try:
+    import sysconfig
+    conda_prefix = Path(sysconfig.get_path('data'))
+    conda_bin = conda_prefix / "Library" / "bin"
+    if conda_bin.exists():
+        needed = [
+            'zlib', 'libpng', 'libjpeg', 'libtiff', 'tiff',
+            'libwebp', 'freetype', 'liblz4', 'libzstd', 'zstd',
+            'libxml2', 'libiconv', 'libffi', 'openjp2', 'lcms2',
+        ]
+        for dll in conda_bin.glob("*.dll"):
+            name_lower = dll.name.lower()
+            if any(p in name_lower for p in needed):
+                extra_binaries.append((str(dll), '.'))
+except Exception as e:
+    print(f"Warning: Could not collect conda DLLs: {e}")
+
 # 收集项目文件
 project_datas = []
 project_files = [
