@@ -301,10 +301,11 @@ def compute_array_beams(theta_range, target_theta, M_total, d, lam,
     return G_co, G_mo, G_sp
 
 
-def compute_energy_spread(delta_theta_range, target_theta, r_obs, M, d, lam):
+def compute_energy_spread(delta_theta_range, target_theta, r_near, r_far, M, d, lam):
     """
-    计算远场波束赋形在不同观测距离下的增益 (匹配 notebook 约定)
-    返回远场观测增益和近场观测增益
+    计算远场波束赋形在两个不同观测距离下的增益
+    r_far: 远场观测距离 (如 2000m)
+    r_near: 近场观测距离 (如 50m)
     """
     m_idx = np.arange(-(M - 1) / 2, (M + 1) / 2)
     cos_target = np.cos(target_theta)
@@ -320,12 +321,10 @@ def compute_energy_spread(delta_theta_range, target_theta, r_obs, M, d, lam):
             continue
         theta_obs = np.arccos(np.clip(cos_obs, -1, 1))
 
-        a_far = np.exp(-1j * 2 * np.pi / lam * m_idx * d * np.cos(theta_obs))
-        G_far[i] = np.abs(w_ff.conj() @ a_far) / M
-
-        r_m = np.sqrt(r_obs**2 + (m_idx * d)**2
-                       - 2 * r_obs * m_idx * d * np.cos(theta_obs))
-        a_near = np.exp(-1j * 2 * np.pi / lam * (r_m - r_obs))
-        G_near[i] = np.abs(w_ff.conj() @ a_near) / M
+        for r_obs, G_arr in [(r_far, G_far), (r_near, G_near)]:
+            r_m = np.sqrt(r_obs**2 + (m_idx * d)**2
+                           - 2 * r_obs * m_idx * d * np.cos(theta_obs))
+            a_obs = np.exp(-1j * 2 * np.pi / lam * (r_m - r_obs))
+            G_arr[i] = np.abs(w_ff.conj() @ a_obs) / M
 
     return G_far, G_near

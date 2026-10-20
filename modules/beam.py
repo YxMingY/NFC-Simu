@@ -168,6 +168,7 @@ $$G(\mathbf{s}; \mathbf{s}') = \frac{|\mathbf{w}^H(\mathbf{s}') \cdot \mathbf{a}
     with es_ctrl:
         st.markdown("##### 观测参数")
         M_es = st.slider("天线数量 M", 32, 1024, 256, step=32, key="es_M")
+        r_far = st.number_input("远场观测距离 (m)", 100.0, 10000.0, 2000.0, step=100.0, key="es_r_far")
         r_near = st.number_input("近场观测距离 (m)", 5.0, 500.0, 50.0, step=5.0, key="es_r")
         theta_es_deg = st.slider("目标角度 (度)", 10, 170, 90, key="es_theta")
         theta_es = np.radians(theta_es_deg)
@@ -175,13 +176,13 @@ $$G(\mathbf{s}; \mathbf{s}') = \frac{|\mathbf{w}^H(\mathbf{s}') \cdot \mathbf{a}
 
     with es_col:
         delta_theta = np.linspace(-delta_range, delta_range, 1000)
-        G_far, G_near_es = compute_energy_spread(delta_theta, theta_es, r_near, M_es, d, lam)
+        G_far, G_near_es = compute_energy_spread(delta_theta, theta_es, r_near, r_far, M_es, d, lam)
 
         fig2c, ax2c = plt.subplots(figsize=(9, 4))
         ax2c.plot(delta_theta, 20 * np.log10(G_far + 1e-10), "b-",
-                  label=f"远场观测 ($r\\to\\infty$)", linewidth=2)
+                  label=f"远场观测 ($r={r_far:.0f}$m)", linewidth=2)
         ax2c.plot(delta_theta, 20 * np.log10(G_near_es + 1e-10), "r--",
-                  label=f"近场观测 ($r={r_near}$m)", linewidth=2)
+                  label=f"近场观测 ($r={r_near:.0f}$m)", linewidth=2)
         ax2c.set_xlabel(r"$\Delta_\theta = \cos\theta' - \cos\theta$", fontsize=12)
         ax2c.set_ylabel("波束聚焦增益 (dB)")
         ax2c.set_title(f"能量扩散效应: 远场波束赋形在近场观测 (M={M_es}, θ={theta_es_deg}°)")
