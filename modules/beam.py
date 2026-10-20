@@ -1,7 +1,8 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from core import compute_beam_gain_grid, compute_beam_gain_curve
+from core import (compute_beam_gain_grid, compute_beam_gain_curve,
+                  compute_array_beams, compute_energy_spread)
 
 
 def render(fc_global):
@@ -151,3 +152,116 @@ $G = 1$ (即 0 dB) 表示完美匹配，$G \ll 1$ 表示失配。
 
         st.pyplot(fig2)
         plt.close(fig2)
+
+    st.markdown("---")
+    st.subheader("三种阵列架构波束方向图对比")
+    st.markdown("对比**共址 ULA (Collocated)**、**模块化 ULA (Modular)** 和**稀疏 ULA (Sparse)** 的远场波束模式。")
+
+    with st.expander("📖 理论基础", expanded=False):
+        st.markdown(r"""
+**三种阵列架构**
+
+| 架构 | 描述 | 波束特征 |
+|------|------|----------|
+| Collocated ULA | 所有天线等间距 $d=\lambda/2$ 排列 | 标准 sinc 型波束，无栅瓣 |
+| Modular ULA | $N$ 个模块，每模块 $M$ 个天线，模块间距 $\Gamma d$ | 主瓣 + 周期性栅瓣 |
+| Sparse ULA | 总天线数相同但间距 $I d \gg \lambda/2$ | 主瓣变窄但栅瓣严重 |
+
+模块化阵列的方向图可分解为**模块级因子** × **子阵因子**：
+
+$$G_{\text{mod}}(\theta) = \frac{1}{N}\left|\sum_{n=0}^{N-1} e^{j\frac{2\pi}{\lambda} n \Gamma d (\cos\theta - \cos\theta')}\right| \cdot \frac{1}{M}\left|\sum_{m=0}^{M-1} e^{j\frac{2\pi}{\lambda} m d (\cos\theta - \cos\theta')}\right|$$
+""")
+
+    arch_col, arch_ctrl = st.columns([3, 1])
+    with arch_ctrl:
+        st.markdown("##### 阵列参数")
+        N_mod = st.slider("模块数 N", 2, 16, 4, key="arch_N")
+        M_elem = st.slider("每模块天线数 M", 2, 16, 4, key="arch_M")
+        Gamma = st.slider("模块间隔 Γ", 2, 32, N_mod + M_elem, key="arch_Gamma")
+        I_sparse = st.slider("稀疏间隔 I", 2, 32, Gamma, key="arch_I")
+        M_total = N_mod * M_elem
+        st.metric("总天线数", f"{M_total}")
+
+    with arch_col:
+        theta_arr = np.linspace(0, np.pi, 2000)
+        target_arr = np.pi / 2
+        G_co, G_mo, G_sp = compute_array_beams(
+            theta_arr, target_arr, M_total, d, lam,
+            N_mod, M_elem, Gamma, I_sparse
+        )
+
+        fig3, ax3 = plt.subplots(figsize=(9, 4))
+        deg = np.degrees(theta_arr)
+        ax3.plot(deg, 20 * np.log10(G_co + 1e-10), "b-", label="Collocated ULA", linewidth=2)
+        ax3.plot(deg, 20 * np.log10(G_mo + 1e-10), "r--",
+                 label=f"Modular ULA ($\\Gamma={Gamma}$)", linewidth=2)
+        ax3.plot(deg, 20 * np.log10(G_sp + 1e-10), "g-.",
+                 label=f"Sparse ULA ($I={I_sparse}$)", linewidth=2)
+        ax3.axvline(90, color="k", linestyle=":", alpha=0.5, label="目标方向 (90°)")
+        ax3.set_xlabel("物理角度 (度)")
+        ax3.set_ylabel("归一化增益 (dB)")
+        ax3.set_title("远场波束方向图: Collocated vs Modular vs Sparse")
+        ax3.legend(fontsize=9)
+        ax3.grid(True, alpha=0.3)
+        ax3.set_ylim([-40, 5])
+        ax3.set_xlim([0, 180])
+        st.pyplot(fig3)
+        plt.close(fig3)
+
+    st.markdown("---")
+    st.subheader("能量扩散效应")
+    st.markdown("远场波束赋形在**近场观测**时出现能量扩散——波束增益大幅下降且主瓣展宽。")
+
+    with st.expander("📖 理论基础", expanded=False):
+        st.markdown(r"""
+**能量扩散 (Energy Spread)**
+
+远场波束赋形向量仅补偿角度相位：
+
+$$\mathbf{w}_{\text{FF}} = \left[ e^{j\frac{2\pi}{\lambda} m d \cos\theta'} \right]_{m}$$
+
+当在**近场**距离 $r$ 观测时，信道响应为球面波：
+
+$$\mathbf{a}_{\text{NF}}(r, \theta) = \left[ \sqrt{\frac{r}{r_m}} \cdot e^{-j\frac{2\pi}{\lambda} r_m} \right]_{m}$$
+
+其中 $r_m = \sqrt{r^2 + (md)^2 - 2r(md)\cos\theta}$。
+
+由于 $r_m$ 关于 $m$ 的**非线性**相位，与远场波束的**线性**相位不匹配，
+导致内积 $\mathbf{w}_{\text{FF}}^H \mathbf{a}_{\text{NF}}$ 大幅衰减——能量在距离维度上扩散。
+
+**物理直觉**：远场波束像手电筒，能量沿一个方向均匀扩散；
+近场需要聚光灯，能量在特定点集中。距离越近，差异越大。
+""")
+
+    es_col, es_ctrl = st.columns([3, 1])
+    with es_ctrl:
+        st.markdown("##### 观测参数")
+        M_es = st.slider("天线数量 M", 32, 1024, 256, step=32, key="es_M")
+        r_near = st.number_input("近场观测距离 (m)", 5.0, 500.0, 50.0, step=5.0, key="es_r")
+        theta_es_deg = st.slider("目标角度 (度)", 10, 170, 90, key="es_theta")
+        theta_es = np.radians(theta_es_deg)
+        delta_range = st.slider("角度扫描范围", 0.01, 0.5, 0.1, step=0.01, key="es_delta")
+
+    with es_col:
+        delta_theta = np.linspace(-delta_range, delta_range, 1000)
+        G_far, G_near = compute_energy_spread(delta_theta, theta_es, r_near, M_es, d, lam)
+
+        fig4, ax4 = plt.subplots(figsize=(9, 4))
+        ax4.plot(delta_theta, 20 * np.log10(G_far + 1e-10), "b-",
+                 label=f"远场观测 ($r\\to\\infty$)", linewidth=2)
+        ax4.plot(delta_theta, 20 * np.log10(G_near + 1e-10), "r--",
+                 label=f"近场观测 ($r={r_near}$m)", linewidth=2)
+        ax4.set_xlabel(r"$\Delta_\theta = \cos\theta' - \cos\theta$", fontsize=12)
+        ax4.set_ylabel("波束聚焦增益 (dB)")
+        ax4.set_title(f"能量扩散效应: 远场波束赋形在近场观测 (M={M_es}, θ={theta_es_deg}°)")
+        ax4.legend(fontsize=11)
+        ax4.grid(True, alpha=0.3)
+        st.pyplot(fig4)
+        plt.close(fig4)
+
+        far_peak = 20 * np.log10(np.max(G_far) + 1e-10)
+        near_peak = 20 * np.log10(np.max(G_near) + 1e-10)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("远场峰值增益", f"{far_peak:.1f} dB")
+        c2.metric("近场峰值增益", f"{near_peak:.1f} dB")
+        c3.metric("增益损失", f"{far_peak - near_peak:.1f} dB")

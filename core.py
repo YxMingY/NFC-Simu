@@ -264,3 +264,68 @@ def compute_distance_resolution(r_array, M, d, lam, theta_prime=np.pi / 2):
     delta_r_approx = 2 * r_array**2 / r_hp
 
     return r1, r2, delta_r, delta_r_approx, r_hp
+
+
+def compute_array_beams(theta_range, target_theta, M_total, d, lam,
+                        N_mod=4, M_elem=4, Gamma=13, I_sparse=13):
+    """
+    计算三种阵列架构的远场波束方向图
+    返回 Collocated / Modular / Sparse 的归一化增益
+    """
+    def far_field_response(theta, M, d_spacing):
+        m = np.arange(-(M - 1) / 2, (M + 1) / 2)
+        return np.exp(-1j * 2 * np.pi / lam * m * d_spacing * np.cos(theta))
+
+    def modular_response(theta, target_th, N, M_sub, Gamma_d, d_sub):
+        n_idx = np.arange(N)
+        m_idx = np.arange(M_sub)
+        phase_mod = -2 * np.pi / lam * n_idx * Gamma_d * np.cos(theta)
+        phase_sub = -2 * np.pi / lam * m_idx * d_sub * np.cos(theta)
+        phase_tgt_mod = 2 * np.pi / lam * n_idx * Gamma_d * np.cos(target_th)
+        phase_tgt_sub = 2 * np.pi / lam * m_idx * d_sub * np.cos(target_th)
+        return (np.sum(np.exp(1j * (phase_mod + phase_tgt_mod))) / N
+                * np.sum(np.exp(1j * (phase_sub + phase_tgt_sub))) / M_sub)
+
+    v_co = far_field_response(target_theta, M_total, d)
+    G_co = np.array([np.abs(v_co.conj() @ far_field_response(t, M_total, d))
+                      for t in theta_range]) / M_total
+
+    G_mo = np.array([np.abs(modular_response(t, target_theta, N_mod, M_elem,
+                                              Gamma * d, d))
+                      for t in theta_range])
+
+    v_sp = far_field_response(target_theta, M_total, I_sparse * d)
+    G_sp = np.array([np.abs(v_sp.conj() @ far_field_response(t, M_total, I_sparse * d))
+                      for t in theta_range]) / M_total
+
+    return G_co, G_mo, G_sp
+
+
+def compute_energy_spread(delta_theta_range, target_theta, r_obs, M, d, lam):
+    """
+    计算远场波束赋形在不同观测距离下的增益 (匹配 notebook 约定)
+    返回远场观测增益和近场观测增益
+    """
+    m_idx = np.arange(-(M - 1) / 2, (M + 1) / 2)
+    cos_target = np.cos(target_theta)
+
+    w_ff = np.exp(-1j * 2 * np.pi / lam * m_idx * d * cos_target)
+
+    G_far = np.zeros(len(delta_theta_range))
+    G_near = np.zeros(len(delta_theta_range))
+
+    for i, dt in enumerate(delta_theta_range):
+        cos_obs = cos_target + dt
+        if np.abs(cos_obs) > 1:
+            continue
+        theta_obs = np.arccos(np.clip(cos_obs, -1, 1))
+
+        a_far = np.exp(-1j * 2 * np.pi / lam * m_idx * d * np.cos(theta_obs))
+        G_far[i] = np.abs(w_ff.conj() @ a_far) / M
+
+        r_m = np.sqrt(r_obs**2 + (m_idx * d)**2
+                       - 2 * r_obs * m_idx * d * np.cos(theta_obs))
+        a_near = np.exp(-1j * 2 * np.pi / lam * (r_m - r_obs))
+        G_near[i] = np.abs(w_ff.conj() @ a_near) / M
+
+    return G_far, G_near
